@@ -18,8 +18,7 @@ public class ChilkatExample {
 	private static String path;
 	private static String local;
 	private static String from = "datawarehouse0126@gmail.com";
-//	private static String to = "huyvo2581999@gmail.com";
-	private static String to = "hoaitugl@gmail.com";
+	private static String to = "huyvo2581999@gmail.com";
 	private static String passfrom = "datawarehouse2020";
 //	private static String content = ";
 	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER  ";
