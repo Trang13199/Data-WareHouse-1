@@ -14,14 +14,13 @@ import com.chilkatsoft.CkSsh;
 public class DownloadFile {
 	private static PreparedStatement ps = null;
 	Connection con;
-//	private static String file_timestamp;
 	private static String from = "datawarehouse0126@gmail.com";
 //	private static String to = "huyvo2581999@gmail.com";
 	private static String to = "tranghoang13199@gmail.com";
 	private static String passfrom = "datawarehouse2020";
 //	private static String content = ";
-	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER  ";
 	static String mess;
+	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER  ";
 
 	static {
 		try {
@@ -148,60 +147,46 @@ public class DownloadFile {
 			// bat dau load file ve
 			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, file_name,
 					file_type);
-//		System.out.println("Dowload thanh cong");
+			Staging s = new Staging();
 
 			if (download) {
-				// Thông báo thành công ra màn hình
-				File file = new File(local + "\\" + target_table);
-				if (!file.exists()) {
-					System.out.println("File hk ton tai..........");
-//					DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
-//					LocalDateTime now = LocalDateTime.now();
-//					file_timestamp = dtf.format(now);
-					String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
-//cập nhật file_status là ERROR và thời gian là thời gian hiện tại
-					try {
-						ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
-						ps.setString(1, target_table);
-						ps.setInt(2, id);
-						ps.setString(3, "ERROR");
-						ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-						ps.executeUpdate();
-					} catch (ClassNotFoundException | SQLException e1) {
-						e1.printStackTrace();
-					}
-					// gửi mail ve hệ thống thông báo lỗi
-					SendMail s = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
-							"Updated log Faild: DATA WAREHOUSE SERVER");
-					s.sendMail();
-				} else {
-					System.out.println("Dowload success file name: " + target_table + " " + host);
-					// Cập nhật status_file là ER và thời gian download là thời
-					// gian hiện tại
-					String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
+				File file = new File(local);
+				System.out.println("File");
+				try {
+					// Kiem tra xem file co ton tai trong thu muc hay khong
+					if (file.isDirectory()) {
 
-					try {
-						ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
-						ps.setString(1, target_table);
-						ps.setInt(2, id);
-						ps.setString(3, "ER");
-						ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-						ps.executeUpdate();
-						System.out.println("Success insert to log");
-					} catch (ClassNotFoundException | SQLException e1) {
-						e1.printStackTrace();
+						File[] listFile = file.listFiles();
+						for (int i = 0; i < listFile.length; i++) {
+							int numberOfLine = s.countLines(listFile[i]);
+							/// bat dau insert vao table_log
+							setupLog(listFile[i].getName(), "ER", numberOfLine, id);
+							// Thong bao thanh cong
+							System.out.println("Insert success full");
+							// gui mail
+
+						}
+						SendMail send = new SendMail(from, to, passfrom,
+								" Update log successfull from " + path + " to " + local + " at "
+										+ new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
+								subject);
+						send.sendMail();
+
+					} else if (!file.exists()) {
+						System.out.println("No fine path");
+
 					}
-					// gửi mail thông báo thành công
-					SendMail s = new SendMail(from, to, passfrom, " Update log successfull from " + path + " to "
-							+ local + " at " + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
-							subject);
-					s.sendMail();
+//					br.close();
+//					con.close();
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
+
 			} else {
-				// In dòng thông báo file Không tồn tại
-				System.out.println("File khong ton tai, idFile: " + target_table + " ,group: " + host);
-//				// 6.2.3.1.3. Cập nhật status_file là ERROR Dowload và thời gian download llà
-//				// thời gian hiện tại
+				// thông báo ra màn hình
+				System.out.println("DOWNLOAD KHONG THANH CONG");
+				// Cập nhật file_status là ERROR và thời gian download là thời
+				// gian hiện tại
 				String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
 
 				try {
@@ -214,17 +199,29 @@ public class DownloadFile {
 				} catch (ClassNotFoundException | SQLException e1) {
 					e1.printStackTrace();
 				}
-				// gửi mail ve hệ thống thông báo lỗi
-				SendMail s = new SendMail(from, to, passfrom, "Updated log faild: Error File No Exit",
+				// gửi mail về hệ thống thông báo lỗi
+				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
 						"Updated log Faild: DATA WAREHOUSE SERVER");
-				s.sendMail();
+				send.sendMail();
 			}
 		}
+	}
+
+	private static void setupLog(String name, String status, int numberOfLine, int id)
+			throws SQLException, ClassNotFoundException {
+		String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
+		PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
+		st.setString(1, name);
+		st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+		st.setString(3, status);
+		st.setInt(4, numberOfLine);
+		st.setInt(5, id);
+		st.execute();
+
 	}
 
 //	public static void main(String[] args) throws ClassNotFoundException, SQLException {
 //		DownloadFile d = new DownloadFile();
 //		d.getLog();
 //	}
-
 }
